@@ -1,12 +1,12 @@
-<h1>Hack The Box - Reactor - Easy</h1>
-<p>Reactor is an easy-level machine from HackTheBox. It is running a node.js application with a React framework.</p>
+# Hack The Box - Reactor - Easy
+Reactor is an easy-level machine from HackTheBox. It is running a node.js application with a React framework.
 
-<h2>Machine Info</h2>
+## Machine Info
 Name: Reactor
 OS: Linux 6.8.0-117-generic
 IP: 10.129.8.133
 
-<h2>Reconnaisance and Scanning</h2>
+## Reconnaisance and Scanning
 First things first, we want to enumerate the machine. 
 
 ```
