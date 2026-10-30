@@ -782,4 +782,8 @@ This host was full of misconfiguration that gave us access to the system in the 
 * Writable access to l.wilson's scriptPath
 * Allowing l.wilson_adm to add themselves to the RODC Administrators
 * Allowing l.wilson_adm to change the "managedBy" for RODC01$
-* Allowing RBCD for l.wilson_adm against RODC01$
+
+
+# Conclusion
+
+In the end, we didn't really use the RBCD here. The main issues were that we were allowed to escalate the l.wilson_adm's role from a user to a local admin, and that l.wilson_adm could force the RODC to expose credentials. Once we extracted the Golden Ticket from the RODC, we were able to use it to extract the Admin password from the DC. 
